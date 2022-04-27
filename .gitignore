@@ -1,0 +1,6 @@
+.env
+/node_modules
+vsc-extension-quickstart.md
+/test
+.yarn-error.log
+.DS_Store
