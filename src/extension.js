@@ -61,7 +61,7 @@ async function init(context) {
       });
     }
   } catch (err) {
-    console.log(err);
+    console.error(err);
     window.showErrorMessage(`${err}`);
   }
 }
@@ -72,7 +72,6 @@ async function init(context) {
 async function setToken(context) {
   const TOKEN = await context.secrets.get("TOKEN");
   if (TOKEN) {
-    await context.secrets.store("TOKEN", TOKEN);
     return context;
   } else {
     const TOKEN = await window.showInputBox({ placeHolder: messages.insertToken });
@@ -112,7 +111,7 @@ async function getAllEdgeFunctions(context) {
       if (err.detail) {
         throw `Azion API request error: ${err.detail}`;
       } else {
-        throw(`${messages.somethingWrong} ${messages.checkToken}`);
+        throw `${messages.somethingWrong} ${messages.checkToken}`;
       }
     }
   }
@@ -123,48 +122,55 @@ async function getAllEdgeFunctions(context) {
  * @param {ExtensionContext} context
  */
 async function updateEdgeFunction(doc, context) {
-  const TOKEN = await context.secrets.get("TOKEN");
-  const folderName = getFunctionNameByPath(doc.uri.path);
-  const payload = {};
+  if (doc) {
+    const TOKEN = await context.secrets.get("TOKEN");
+    const folderName = getFunctionNameByPath(doc.uri.path);
+    const payload = {};
 
-  const nameWithSlashUnicode = slashUnicode(folderName, "string");
-  const myEdgeFunctions = await context.globalState.get("FUNCTIONS");
+    const nameWithSlashUnicode = slashUnicode(folderName, "string");
+    const myEdgeFunctions = await context.globalState.get("FUNCTIONS");
 
-  // function to be edited [index]
-  const functionIndex = myEdgeFunctions.findIndex(
-    (/** @type {{ name: Object; }} */ foo) => foo.name === nameWithSlashUnicode
-  );
+    // function to be edited [index]
+    const functionIndex = myEdgeFunctions.findIndex(
+      (/** @type {{ name: Object; }} */ foo) => foo.name === nameWithSlashUnicode
+    );
 
-  const myEdgeFunction = myEdgeFunctions[functionIndex];
-  const { name, id, json_args, code } = myEdgeFunction;
+    const myEdgeFunction = myEdgeFunctions[functionIndex];
+    const { name, id, json_args, code } = myEdgeFunction;
 
-  const isCode = () => doc.uri.path.includes("code.js");
-  const isArgs = () => doc.uri.path.includes("args.json");
+    const isCode = () => doc.uri.path.includes("code.js");
+    const isArgs = () => doc.uri.path.includes("args.json");
 
-  const newContent = doc.getText();
-  const oldCode = code;
-  const oldArgs = json_args;
+    const newContent = doc.getText();
+    const oldCode = code;
+    const oldArgs = json_args;
 
-  if (isCode()) payload.code = newContent;
-  if (isArgs()) payload.json_args = newContent;
+    if (isCode()) payload.code = newContent;
+    if (isArgs()) payload.json_args = newContent;
 
-  if ((isCode() && oldCode !== newContent) || (isArgs() && oldArgs !== newContent)) {
-    try {
-      const updateEdgeFunction = await createProgress(messages.updating, patch(TOKEN, id, payload));
-      if (!updateEdgeFunction.results) {
-        throw updateEdgeFunction;
+    if ((isCode() && oldCode !== newContent) || (isArgs() && oldArgs !== newContent)) {
+      try {
+        const updateEdgeFunction = await createProgress(
+          messages.updating,
+          patch(TOKEN, id, payload)
+        );
+        if (!updateEdgeFunction.results) {
+          throw updateEdgeFunction;
+        }
+        //update storage
+        if (isCode()) myEdgeFunctions[functionIndex].code = newContent;
+        if (isArgs()) myEdgeFunctions[functionIndex].json_args = newContent;
+        context.globalState.update("FUNCTIONS", myEdgeFunctions);
+        await doc.save();
+        window.showInformationMessage(messages.updated(name));
+      } catch (err) {
+        console.error(err);
+        if (err.detail === "Invalid token") context.secrets.delete("TOKEN");
+        window.showErrorMessage(`${messages.somethingWrong} ${messages.updatedError(name)}`);
       }
-      //update storage
-      if (isCode) myEdgeFunctions[functionIndex].code = newContent;
-      if (isArgs) myEdgeFunctions[functionIndex].json_args = newContent;
-      context.globalState.update("FUNCTIONS", myEdgeFunctions);
-      await doc.save();
-      window.showInformationMessage(messages.updated(name));
-    } catch (err) {
-      console.log(err);
-      context.secrets.delete("TOKEN");
-      window.showErrorMessage(`${messages.somethingWrong} ${messages.updatedError(name)}`);
     }
+  } else {
+    window.showErrorMessage(`${messages.fileMissing}`);
   }
 }
 

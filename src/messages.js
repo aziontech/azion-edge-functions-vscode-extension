@@ -4,6 +4,7 @@ module.exports = {
   congrats: 'Congratulations, your extension "azion-functions" is now active!',
   deactivated: "Azion Edge Functions Extension has been deactivated.",
   done: "Done!",
+  fileMissing: "It looks like you don't have any valid files open.",
   insertToken: "Insert your personal token",
   creatingFile: (/** @type {String} */ functionName) => `Creating ${functionName} file`,
   somethingWrong: "Oops! There is something wrong.",

@@ -100,7 +100,7 @@ function getFunctionNameByPath(path) {
 }
 
 /**
- * @param {string} str
+ * @param {String} str
  */
 function slashUnicode(str, type = "unicode") {
   if (type === "unicode") return str.replace(/\//g, "\u2215");

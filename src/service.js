@@ -19,13 +19,13 @@ async function get(TOKEN, URL) {
     },
   })
     .then((res) => res.json())
-    .then((body) => body)
+    .then((body) => body);
 }
 
 /**
+ * @param { String } TOKEN
  * @param { Number } functionId
  * @param { Object } payload
- * @param { String } TOKEN
  */
 
 async function patch(TOKEN, functionId, payload) {
