@@ -11,6 +11,8 @@ const {
   FileType,
 } = require("vscode");
 
+const os = require('os')
+
 const {
   createFolder,
   createFile,
@@ -23,9 +25,8 @@ const {
 const { get, patch } = require("./service");
 const messages = require("./messages");
 
-const getPath = require("platform-folders").default;
 
-const USER_DOCUMENTS_PATH = getPath("documents");
+const USER_DOCUMENTS_PATH = `${os.homedir()}/documents`;
 const AZION_FOLDER_NAME = "azion-edge-functions";
 const AZION_EDGE_FUNCTIONS_PATH = `${USER_DOCUMENTS_PATH}/${AZION_FOLDER_NAME}`;
 /**
