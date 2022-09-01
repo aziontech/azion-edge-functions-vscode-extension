@@ -68,7 +68,6 @@
 		"axios": "^0.26.1",
 		"dotenv": "^16.0.0",
 		"envfile": "^6.17.0",
-		"node-fetch": "2",
-		"platform-folders": "^0.6.0"
+		"node-fetch": "2"
 	}
 }
