@@ -11,7 +11,7 @@ const {
   FileType,
 } = require("vscode");
 
-const os = require('os')
+const os = require("os")
 
 const {
   createFolder,
