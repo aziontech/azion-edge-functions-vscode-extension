@@ -1,0 +1,45 @@
+name: Run Publish Release
+
+on:
+  push:
+    branches:
+      - main
+env:
+    HUSKY: 0
+
+jobs:
+  publish-release:
+    runs-on: self-hosted
+    container:
+      image: node:14-alpine3.12
+
+    steps:
+      - name: Install SO deps
+        run: apk add curl git bash
+      - uses: actions/checkout@v2
+      - uses: actions/cache@v2
+        with:
+          path: '**/node_modules'
+          key: ${{ runner.os }}-modules-${{ hashFiles('**/yarn.lock') }}
+          
+      - uses: actions/setup-node@v2
+        with:
+          node-version: '14.x'
+          registry-url: 'https://npm.pkg.github.com'
+          scope: '@aziontech'
+          always-auth: true
+        env:
+          NODE_AUTH_TOKEN: ${{ secrets.GH_PACKAGES_SECRET }}
+
+      - name: Install packages
+        run: yarn install --frozen-lockfile
+      - name: Create Release
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          NPM_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          NODE_AUTH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        run: yarn semantic-release -e ./release.config.js
+      - name: Publish in Marketplace
+        env:
+          VSCE_PAT: ${{ secrets.VSCE_PAT }}
+        run: yarn publish
