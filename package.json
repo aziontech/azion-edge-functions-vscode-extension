@@ -8,16 +8,16 @@
 	},
 	"license": "SEE LICENSE IN LICENSE.MD",
 	"description": "Run serverless applications at the edge, closer to your users and devices.",
-	"publisher": "jotanarciso",
+	"publisher": "aziontech",
 	"repository": {
 		"type": "git",
 		"url": "https://github.com/aziontech/azion-edge-functions-vscode-extension"
 	},
 	"author": {
-		"name": "João Narciso",
-		"url": "https://jotanarciso.com"
+		"name": "Azion",
+		"url": "https://azion.com"
 	},
-	"version": "0.3.0",
+	"version": "0.1.0",
 	"engines": {
 		"vscode": "^1.66.0"
 	},
