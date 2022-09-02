@@ -65,7 +65,8 @@
 		"mocha": "^9.2.2",
 		"semantic-release": "^19.0.3",
 		"typescript": "^4.5.5",
-		"vsce": "^2.11.0"
+		"vsce": "^2.11.0",
+		"conventional-changelog-conventionalcommits": "4.6.0"
 	},
 	"dependencies": {
 		"node-fetch": "2"
