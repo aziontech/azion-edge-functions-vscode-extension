@@ -66,9 +66,6 @@
 		"semantic-release": "^19.0.3"
 	},
 	"dependencies": {
-		"axios": "^0.26.1",
-		"dotenv": "^16.0.0",
-		"envfile": "^6.17.0",
 		"node-fetch": "2"
 	}
 }
