@@ -32,19 +32,34 @@
 		"edge functions"
 	],
 	"activationEvents": [
-		"onCommand:azion-functions.init",
-		"onCommand:azion-functions.patch"
+		"onCommand:azion-functions.sync",
+		"onCommand:azion-functions.patch",
+		"onCommand:azion-functions.create-jamstack",
+		"onCommand:azion-functions.build-jamstack",
+		"onCommand:azion-functions.publish-jamstack"
 	],
 	"main": "./src/extension.js",
 	"contributes": {
 		"commands": [
 			{
-				"command": "azion-functions.init",
+				"command": "azion-functions.sync",
 				"title": "Azion Edge Functions: Sync"
 			},
 			{
 				"command": "azion-functions.patch",
 				"title": "Azion Edge Functions: Update Function"
+			},
+			{
+				"command": "azion-functions.create-jamstack",
+				"title": "Azion Edge Functions: Create Jamstack Project"
+			},
+			{
+				"command": "azion-functions.build-jamstack",
+				"title": "Azion Edge Functions: Build Jamstack Project"
+			},
+			{
+				"command": "azion-functions.publish-jamstack",
+				"title": "Azion Edge Functions: Publish Jamstack Project"
 			}
 		]
 	},
