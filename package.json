@@ -1,5 +1,6 @@
 {
 	"name": "azion-edge-functions",
+	"pricing": "Free",
 	"displayName": "Edge Functions - Azion",
 	"icon": "images/icon.png",
 	"galleryBanner": {
