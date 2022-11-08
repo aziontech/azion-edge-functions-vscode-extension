@@ -1,9 +1,17 @@
-const { window, ProgressLocation, workspace, FileType, Uri, commands } = require("vscode");
+const {
+  window,
+  ProgressLocation,
+  workspace,
+  Uri
+} = require("vscode");
+
 const fs = require("fs");
+const util = require("util");
+const cp = util.promisify(require("child_process").exec);
+const path = require("path");
 
 const messages = require("./messages");
 const langs = require("./langs");
-
 /**
  * @param {String} title
  * @param {Promise} promise
@@ -17,7 +25,7 @@ async function createProgress(title, promise) {
     },
     async (progress, token) => {
       token.onCancellationRequested(() => {
-        console.log(messages.userCanceledRunning);
+        console.warn(messages.userCanceledRunning);
         window.showErrorMessage(messages.requestCanceled);
       });
 
@@ -46,7 +54,7 @@ async function createProgress(title, promise) {
           } catch (err) {
             reject(err);
           }
-        }, 12000);
+        }, 2000);
       });
     }
   );
@@ -65,11 +73,12 @@ function createFolder(path) {
 /**
  * @param {String} name
  * @param {string | NodeJS.ArrayBufferView} content
- * @param {String} path
+ * @param {String} targetDir
  * @param {String} extension
  */
-function createFile(name, content, path, extension) {
-  const filePath = `${path}/${name}.${extension}`;
+function createFile(name, content, targetDir, extension) {
+  const fileName = `${name}.${extension}`;
+  const filePath = path.join(targetDir, fileName);
   fs.writeFileSync(filePath, content, "utf8");
 }
 
@@ -80,7 +89,6 @@ async function createWorkspace(path, name) {
   createFolder(path);
   const workspaceFolderUri = Uri.parse(path);
   workspace.updateWorkspaceFolders(0, undefined, { uri: workspaceFolderUri, name: name });
-  // await commands.executeCommand("vscode.openFolder", workspaceFolderUri);
 }
 
 /**
@@ -91,12 +99,8 @@ function getFileExtension(langName) {
   return langs[langName];
 }
 
-function getFunctionNameByPath(path) {
-  const withoutFile = path.slice(0, path.lastIndexOf("/"));
-  let pos = withoutFile.lastIndexOf("/");
-  let name = withoutFile.substring(pos + 1);
-  name = name.split(".")[0];
-  return name;
+function getFileContent(path) {
+  return fs.readFileSync(path, "utf8");
 }
 
 /**
@@ -108,12 +112,36 @@ function slashUnicode(str, type = "unicode") {
   return str;
 }
 
+/**
+ * @param {String} command
+ */
+async function exec(command) {
+  const { stdout, stderr } = await cp(command);
+  return { stdout, stderr };
+}
+
+/**
+ * @param {string} configPath
+ */
+function getAzionConfig(configPath) {
+  try {
+    const azionConfigPath = path.join(configPath, "azion.json");
+    let azionConfig = getFileContent(azionConfigPath);
+    if (azionConfig) return { config: JSON.parse(azionConfig), path: azionConfigPath };
+  } catch (err) {
+    console.error(err);
+    return null;
+  }
+}
+
 module.exports = {
   createFolder,
   createFile,
   createProgress,
   createWorkspace,
+  getAzionConfig,
   getFileExtension,
-  getFunctionNameByPath,
+  getFileContent,
   slashUnicode,
+  exec,
 };
