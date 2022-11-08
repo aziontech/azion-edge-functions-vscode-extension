@@ -14,4 +14,5 @@ Manage your Edge Functions directly in your VSCode.
 	- Publish your project and receive the URL without configuring anything
 
 ## Links
-[Azion](https://azion.com)
+- [Azion](https://azion.com)
+- [Github](https://github.com/aziontech/azion-edge-functions-vscode-extension)
