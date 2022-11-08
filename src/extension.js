@@ -1,17 +1,15 @@
+const path = require("path");
 const {
   window,
   commands,
-  // eslint-disable-next-line no-unused-vars
   Uri,
-  // eslint-disable-next-line no-unused-vars
+  // @ts-ignore
   ExtensionContext,
-  // eslint-disable-next-line no-unused-vars
+  // @ts-ignore
   TextDocument,
-  // eslint-disable-next-line no-unused-vars
-  FileType,
 } = require("vscode");
 
-const os = require("os")
+const auth = require("./auth");
 
 const {
   createFolder,
@@ -19,25 +17,45 @@ const {
   createProgress,
   createWorkspace,
   getFileExtension,
-  getFunctionNameByPath,
   slashUnicode,
 } = require("./helper");
-const { get, patch } = require("./service");
+
+const { FUNCTIONS } = require("./service");
 const messages = require("./messages");
+const { AZION_FOLDER_NAME, AZION_EDGE_FUNCTIONS_PATH } = require("./constants");
+const {
+  createJamstackFunction,
+  buildJamstackFunction,
+  publishJamstackFunction,
+} = require("./framework-adapter");
 
-
-const USER_DOCUMENTS_PATH = `${os.homedir()}/documents`;
-const AZION_FOLDER_NAME = "azion-edge-functions";
-const AZION_EDGE_FUNCTIONS_PATH = `${USER_DOCUMENTS_PATH}/${AZION_FOLDER_NAME}`;
 /**
  * @param {ExtensionContext} context
  */
 async function activate(context) {
-  context.subscriptions.push(commands.registerCommand("azion-functions.init", () => init(context)));
+  context.subscriptions.push(commands.registerCommand("azion-functions.sync", () => sync(context)));
   context.subscriptions.push(
     commands.registerCommand(
       "azion-functions.patch",
       async () => await updateEdgeFunction(window.activeTextEditor?.document, context)
+    )
+  );
+  context.subscriptions.push(
+    commands.registerCommand(
+      "azion-functions.create-jamstack",
+      async () => await createJamstackFunction(context)
+    )
+  );
+  context.subscriptions.push(
+    commands.registerCommand(
+      "azion-functions.build-jamstack",
+      async () => await buildJamstackFunction(context)
+    )
+  );
+  context.subscriptions.push(
+    commands.registerCommand(
+      "azion-functions.publish-jamstack",
+      async () => await publishJamstackFunction(context)
     )
   );
 }
@@ -49,13 +67,12 @@ function deactivate() {
 /**
  * @param {ExtensionContext} context
  */
-async function init(context) {
-  context.globalState.update("FUNCTIONS", []); // reset storage functions
+async function sync(context) {
+  context.globalState.update("pureFunctions", []); // reset storage functions
   try {
-    const newContext = await setToken(context);
-    const TOKEN = await newContext.secrets.get("TOKEN");
+    const TOKEN = await auth(context);
     if (TOKEN) {
-      const myEdgeFunctions = await getAllEdgeFunctions(newContext);
+      const myEdgeFunctions = await getAllEdgeFunctions(context);
       await createWorkspace(AZION_EDGE_FUNCTIONS_PATH, AZION_FOLDER_NAME);
       myEdgeFunctions.forEach(async (/** @type {Object} */ foo) => {
         await createProgress(messages.creatingFile(foo.name), createLocalFunction(foo));
@@ -70,26 +87,13 @@ async function init(context) {
 /**
  * @param {ExtensionContext} context
  */
-async function setToken(context) {
-  const TOKEN = await context.secrets.get("TOKEN");
-  if (TOKEN) {
-    return context;
-  } else {
-    const TOKEN = await window.showInputBox({ placeHolder: messages.insertToken });
-    await context.secrets.store("TOKEN", TOKEN);
-    return context;
-  }
-}
-
-/**
- * @param {ExtensionContext} context
- */
 async function getAllEdgeFunctions(context) {
   const aux = [];
-  const TOKEN = await context.secrets.get("TOKEN");
+  const TOKEN = await auth(context);
+
   const recursion = async (nextPageURL = null) => {
     try {
-      const response = await get(TOKEN, nextPageURL);
+      const response = await FUNCTIONS.get(TOKEN, nextPageURL);
       if (response.results) {
         const { results } = response;
         aux.push(...results);
@@ -105,7 +109,7 @@ async function getAllEdgeFunctions(context) {
   if (TOKEN) {
     try {
       await createProgress(messages.synchronizing, recursion());
-      context.globalState.update("FUNCTIONS", aux);
+      context.globalState.update("pureFunctions", aux);
       return Promise.resolve(aux);
     } catch (err) {
       context.secrets.delete("TOKEN");
@@ -124,12 +128,12 @@ async function getAllEdgeFunctions(context) {
  */
 async function updateEdgeFunction(doc, context) {
   if (doc) {
-    const TOKEN = await context.secrets.get("TOKEN");
-    const folderName = getFunctionNameByPath(doc.uri.path);
+    const TOKEN = await auth(context);
+    const folderName = path.basename(path.parse(doc.uri.path).dir);
     const payload = {};
 
     const nameWithSlashUnicode = slashUnicode(folderName, "string");
-    const myEdgeFunctions = await context.globalState.get("FUNCTIONS");
+    const myEdgeFunctions = await context.globalState.get("pureFunctions");
 
     // function to be edited [index]
     const functionIndex = myEdgeFunctions.findIndex(
@@ -137,40 +141,49 @@ async function updateEdgeFunction(doc, context) {
     );
 
     const myEdgeFunction = myEdgeFunctions[functionIndex];
-    const { name, id, json_args, code } = myEdgeFunction;
 
-    const isCode = () => doc.uri.path.includes("code.js");
-    const isArgs = () => doc.uri.path.includes("args.json");
+    if (myEdgeFunction) {
+      const { name, id, json_args, code } = myEdgeFunction;
+      const isCode = () => doc.uri.path.includes("code.js");
+      const isArgs = () => doc.uri.path.includes("args.json");
 
-    const newContent = doc.getText();
-    const oldCode = code;
-    const oldArgs = json_args;
+      const newContent = doc.getText();
+      const oldCode = code;
+      const oldArgs = json_args;
 
-    if (isCode()) payload.code = newContent;
-    if (isArgs()) payload.json_args = newContent;
+      if (isCode()) payload.code = newContent;
+      if (isArgs()) payload.json_args = newContent;
 
-    if ((isCode() && oldCode !== newContent) || (isArgs() && oldArgs !== newContent)) {
-      try {
-        const updateEdgeFunction = await createProgress(
-          messages.updating,
-          patch(TOKEN, id, payload)
-        );
-        if (!updateEdgeFunction.results) {
-          throw updateEdgeFunction;
+      if ((isCode() && oldCode !== newContent) || (isArgs() && oldArgs !== newContent)) {
+        try {
+          const updateEdgeFunction = await createProgress(
+            messages.updating,
+            FUNCTIONS.patch(TOKEN, id, payload)
+          );
+          if (!updateEdgeFunction.results) {
+            throw updateEdgeFunction;
+          }
+
+          //update storage
+          if (isCode()) myEdgeFunctions[functionIndex].code = newContent;
+          if (isArgs()) myEdgeFunctions[functionIndex].json_args = newContent;
+
+          context.globalState.update("pureFunctions", myEdgeFunctions);
+          await doc.save();
+          window.showInformationMessage(messages.updated(name));
+        } catch (err) {
+          console.error(err);
+          if (err.detail === "Invalid token") context.secrets.delete("TOKEN");
+          window.showErrorMessage(`${messages.somethingWrong} ${messages.updatedError(name)}`);
         }
-        //update storage
-        if (isCode()) myEdgeFunctions[functionIndex].code = newContent;
-        if (isArgs()) myEdgeFunctions[functionIndex].json_args = newContent;
-        context.globalState.update("FUNCTIONS", myEdgeFunctions);
-        await doc.save();
-        window.showInformationMessage(messages.updated(name));
-      } catch (err) {
-        console.error(err);
-        if (err.detail === "Invalid token") context.secrets.delete("TOKEN");
-        window.showErrorMessage(`${messages.somethingWrong} ${messages.updatedError(name)}`);
       }
     }
-  } else {
+
+    if (!myEdgeFunction) {
+      window.showErrorMessage(`${messages.fileMissing}`);
+    }
+  }
+  if (!doc) {
     window.showErrorMessage(`${messages.fileMissing}`);
   }
 }
@@ -181,9 +194,10 @@ async function updateEdgeFunction(doc, context) {
 async function createLocalFunction(foo) {
   const { name, code, language, json_args } = foo;
   const nameWithSlashUnicode = slashUnicode(name);
-  const localFunctionPath = `${AZION_EDGE_FUNCTIONS_PATH}/${nameWithSlashUnicode}`;
+  const localFunctionPath = path.join(AZION_EDGE_FUNCTIONS_PATH, nameWithSlashUnicode);
   const functionExtension = getFileExtension(language);
   const jsonArgsString = JSON.stringify(json_args);
+
   createFolder(localFunctionPath);
   createFile("code", code, localFunctionPath, functionExtension);
   createFile("args", jsonArgsString, localFunctionPath, "json");
