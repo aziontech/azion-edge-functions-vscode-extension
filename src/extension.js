@@ -98,7 +98,7 @@ async function getAllEdgeFunctions(context) {
         const { results } = response;
         aux.push(...results);
         if (response.links.next) {
-          recursion(response.links.next);
+          await recursion(response.links.next);
         }
       } else throw response;
     } catch (err) {
