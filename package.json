@@ -85,7 +85,7 @@
 		"axios": "^0.26.1",
 		"azion-framework-adapter": "^0.2.0",
 		"dotenv": "^16.0.0",
-		"envfile": "^6.17.0",
+		"envfile": "^7.1.0",
 		"node-fetch": "2",
 		"open": "^8.4.0"
 	}
